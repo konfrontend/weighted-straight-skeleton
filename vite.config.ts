@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite';
-import dts from 'vite-plugin-dts';
+import { defineConfig } from 'vite'
+import dts from 'vite-plugin-dts'
 
 export default defineConfig({
   plugins: [
@@ -7,26 +7,15 @@ export default defineConfig({
     dts({
       entryRoot: 'src',
       tsconfigPath: './tsconfig.json',
-    })
+    }),
   ],
   build: {
-    // outDir: 'dist',
-    // minify: true,
     sourcemap: true,
     lib: {
       entry: 'src/index.ts',
       name: 'WeightedStraightSkeleton',
       fileName: (format) => `index.${format}.js`,
-      formats: ['es']
+      formats: ['es'],
     },
-    rollupOptions: {
-      // mark peerDependencies & built-ins as externals
-      external: [], // "react"
-      output: {
-        // global variable names in UMD build
-        globals: {
-        }
-      }
-    }
-  }
-});
+  },
+})
