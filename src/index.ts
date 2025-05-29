@@ -1,5 +1,5 @@
 //@ts-ignore
-import Module from '../cmake-build-emscriptencmakeprofile/main';
+import Module from '../cmake-build-release/main';
 
 interface WasmModule {
   HEAPU8: Uint8Array;
