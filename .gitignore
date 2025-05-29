@@ -1,3 +1,6 @@
-cmake-*
-node_modules
 .idea
+node_modules
+cmake-*
+cmake-build-release/*
+!cmake-build-release/main.js
+dist

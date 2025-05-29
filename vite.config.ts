@@ -6,12 +6,13 @@ export default defineConfig({
     // emit .d.ts into dist/
     dts({
       entryRoot: 'src',
-      tsconfigPath: './tsconfig.json'
+      tsconfigPath: './tsconfig.json',
     })
   ],
   build: {
-    outDir: 'dist',
-    minify: false,
+    // outDir: 'dist',
+    // minify: true,
+    sourcemap: true,
     lib: {
       entry: 'src/index.ts',
       name: 'WeightedStraightSkeleton',

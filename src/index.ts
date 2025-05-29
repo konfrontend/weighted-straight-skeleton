@@ -1,5 +1,5 @@
 //@ts-ignore
-import Module from '../cmake-build-release/main';
+import Module from '../cmake-build-release/main.js';
 
 interface WasmModule {
   HEAPU8: Uint8Array;

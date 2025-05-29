@@ -2,6 +2,10 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
+    "lib": [
+      "es6",
+      "dom"
+    ],
     "declaration": true,
     "declarationDir": "dist",
     "outDir": "dist",
@@ -9,7 +13,11 @@
     "moduleResolution": "Node",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "downlevelIteration": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noImplicitAny": true
   },
   "include": ["src"]
 }

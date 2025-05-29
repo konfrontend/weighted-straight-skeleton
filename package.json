@@ -5,10 +5,13 @@
   "license": "MIT",
   "version": "0.0.0",
   "type": "module",
-  "module": "dist/index.es.js",
+  "main": "dist/index.es.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "package.json",
+    "README.md"
   ],
   "scripts": {
     "dev": "vite",
