@@ -1,36 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>MyLib Demo</title>
-  <link rel="stylesheet" href="./src/style.css">
-</head>
-<body>
-<div id="app">
-  <div class="container">
-    <div class="controls">
-      <p>GeoJSON Polygon input</p>
-      <div class="btns">
-        <button class="sample" data-sample="0">Sample polygon #1</button>
-        <button class="sample" data-sample="1">Sample polygon #2</button>
-        <button class="sample" data-sample="2">Sample polygon #3</button>
-      </div>
-      <textarea id="input"></textarea>
-      <div class="btns-bottom">
-        <span>Last update took <span id="time"></span></span>
-        <button id="update">Update straight skeleton</button>
-      </div>
-    </div>
-    <div class="preview">
-      <p>2D straight skeleton preview</p>
-      <canvas id="canvas2d"></canvas>
-      <p>3D straight skeleton preview</p>
-      <canvas id="canvas3d"></canvas>
-    </div>
-  </div>
-</div>
-<script type="module">
-  import { SkeletonBuilder } from './src/index.ts';
+<script setup>
+
+  import { SkeletonBuilder } from '../src/index.ts';
 
   console.log(SkeletonBuilder, 'test');
 
@@ -74,7 +44,7 @@
       const padding = 15 * window.devicePixelRatio;
       const scale = Math.min(
         (canvas2d.width - padding * 2) / (skeletonBox.maxX - skeletonBox.minX),
-        (canvas2d.height - padding * 2) / (skeletonBox.maxY - skeletonBox.minY)
+        (canvas2d.height - padding * 2) / (skeletonBox.maxY - skeletonBox.minY),
       );
       const offsetX = (canvas2d.width - (skeletonBox.maxX - skeletonBox.minX) * scale) / 2;
       const offsetY = (canvas2d.height - (skeletonBox.maxY - skeletonBox.minY) * scale) / 2;
@@ -128,136 +98,136 @@
     [
       -7.668643659936184,
       -6.893428148118769,
-      1
+      1,
     ],
     [
       4.408397985946804,
       -6.7713729215075,
-      1
+      1,
     ],
     [
       4.306500975403689,
       3.311066594496151,
-      1
+      1,
     ],
     [
       -10.670070422270111,
       3.159707605316379,
-      1
+      1,
     ],
     [
       -10.606254962386874,
       -3.1546632582566723,
-      1
+      1,
     ],
     [
       -7.706725210596072,
       -3.1253594956881585,
-      1
+      1,
     ],
     [
       -7.668643659936184,
       -6.893428148118769,
-      1
-    ]
+      1,
+    ],
   ];
   const demoPoints = [
     [
       9.594226,
-      47.525058
+      47.525058,
     ],
     [
       8.522612,
-      47.830828
+      47.830828,
     ],
     [
       8.317301,
-      47.61358
+      47.61358,
     ],
     [
       7.466759,
-      47.620582
+      47.620582,
     ],
     [
       7.192202,
-      47.449766
+      47.449766,
     ],
     [
       6.736571,
-      47.541801
+      47.541801,
     ],
     [
       6.768714,
-      47.287708
+      47.287708,
     ],
     [
       6.037389,
-      46.725779
+      46.725779,
     ],
     [
       6.022609,
-      46.27299
+      46.27299,
     ],
     [
       6.5001,
-      46.429673
+      46.429673,
     ],
     [
       6.843593,
-      45.991147
+      45.991147,
     ],
     [
       7.273851,
-      45.776948
+      45.776948,
     ],
     [
       7.755992,
-      45.82449
+      45.82449,
     ],
     [
       8.31663,
-      46.163642
+      46.163642,
     ],
     [
       8.489952,
-      46.005151
+      46.005151,
     ],
     [
       8.966306,
-      46.036932
+      46.036932,
     ],
     [
       9.182882,
-      46.440215
+      46.440215,
     ],
     [
       9.922837,
-      46.314899
+      46.314899,
     ],
     [
       10.363378,
-      46.483571
+      46.483571,
     ],
     [
       10.442701,
-      46.893546
+      46.893546,
     ],
     [
       9.932448,
-      46.920728
+      46.920728,
     ],
     [
       9.47997,
-      47.10281
+      47.10281,
     ],
     [
       9.632932,
-      47.347601
+      47.347601,
     ],
     [
       9.594226,
-      47.525058
-    ]
+      47.525058,
+    ],
   ];
 
   function setEdgePitch(ring, edgeIx, deg) {
@@ -297,8 +267,30 @@
     // }
     // requestAnimationFrame(frameLoop);
   });
-
-
 </script>
-</body>
-</html>
+<template>
+  <div class="container">
+    <div class="controls">
+      <p>GeoJSON Polygon input</p>
+      <div class="btns">
+        <button class="sample" data-sample="0">Sample polygon #1</button>
+        <button class="sample" data-sample="1">Sample polygon #2</button>
+        <button class="sample" data-sample="2">Sample polygon #3</button>
+      </div>
+      <textarea id="input"></textarea>
+      <div class="btns-bottom">
+        <span>Last update took <span id="time"></span></span>
+        <button id="update">Update straight skeleton</button>
+      </div>
+    </div>
+    <div class="preview">
+      <p>2D straight skeleton preview</p>
+      <canvas id="canvas2d"></canvas>
+      <p>3D straight skeleton preview</p>
+      <canvas id="canvas3d"></canvas>
+    </div>
+  </div>
+
+</template>
+
+<style></style>
