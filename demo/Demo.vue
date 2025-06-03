@@ -1,98 +1,10 @@
-<script setup>
+<script setup lang="ts">
+  import { onMounted, reactive, ref } from 'vue';
+  import { SkeletonBuilder, Skeleton } from '../src';
 
-  import { SkeletonBuilder } from '../src/index.ts';
-
-  console.log(SkeletonBuilder, 'test');
-
-  let activeSkeleton = null;
-  let skeletonBox = null;
-
-  const updateSkeletonBox = () => {
-    if (activeSkeleton === null) {
-      skeletonBox = null;
-      return;
-    }
-
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    for (const vertex of activeSkeleton.vertices) {
-      minX = Math.min(minX, vertex[0]);
-      minY = Math.min(minY, vertex[1]);
-      maxX = Math.max(maxX, vertex[0]);
-      maxY = Math.max(maxY, vertex[1]);
-    }
-
-    skeletonBox = { minX, minY, maxX, maxY };
-  };
-
-  function main() {
-    const canvas2d = document.getElementById('canvas2d');
-    const ctx = canvas2d.getContext('2d');
-
-    const draw2d = () => {
-      ctx.fillStyle = '#eee';
-      ctx.fillRect(0, 0, canvas2d.width, canvas2d.height);
-
-      console.log(activeSkeleton);
-      if (activeSkeleton === null) {
-        return;
-      }
-
-      const padding = 15 * window.devicePixelRatio;
-      const scale = Math.min(
-        (canvas2d.width - padding * 2) / (skeletonBox.maxX - skeletonBox.minX),
-        (canvas2d.height - padding * 2) / (skeletonBox.maxY - skeletonBox.minY),
-      );
-      const offsetX = (canvas2d.width - (skeletonBox.maxX - skeletonBox.minX) * scale) / 2;
-      const offsetY = (canvas2d.height - (skeletonBox.maxY - skeletonBox.minY) * scale) / 2;
-
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = window.devicePixelRatio;
-      ctx.fillStyle = '#ffb6e9';
-
-      for (const polygon of activeSkeleton.polygons) {
-        ctx.beginPath();
-
-        for (let i = 0; i < polygon.length; i++) {
-          const vertex = activeSkeleton.vertices[polygon[i]];
-          const x = (vertex[0] - skeletonBox.minX) * scale + offsetX;
-          const y = (vertex[1] - skeletonBox.minY) * scale + offsetY;
-
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        }
-
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fill();
-      }
-    };
-
-    const onCanvas2dResize = () => {
-      canvas2d.width = canvas2d.clientWidth * window.devicePixelRatio;
-      canvas2d.height = canvas2d.clientHeight * window.devicePixelRatio;
-      draw2d();
-    };
-
-    updateSkeletonBox();
-
-    new ResizeObserver(onCanvas2dResize).observe(canvas2d);
-
-    // const updateButton = document.getElementById('update');
-    // updateButton.addEventListener('click', () => {
-    //   updateSkeletonBox();
-    //   draw2d();
-    // });
-
-    // draw2d();
-  }
-
+  import { usePreview3D } from './utils/usePreview3D';
+  import { usePreview2D } from './utils/usePreview2D';
+  import PerformanceTracker from './utils/PerformaceTracker';
 
   const roofPoints = [
     [
@@ -230,43 +142,84 @@
     ],
   ];
 
-  function setEdgePitch(ring, edgeIx, deg) {
+  const canvas2dRef = ref<HTMLCanvasElement | null>(null);
+  const canvas3dRef = ref<HTMLCanvasElement | null>(null);
+  const skeletonBox = reactive({
+    minX: 0,
+    minY: 0,
+    maxX: 0,
+    maxY: 0,
+  });
+  const tracker = new PerformanceTracker();
+
+  const { draw2d } = usePreview2D(canvas2dRef, skeletonBox);
+  const { draw3d, initRenderer, animate } = usePreview3D(canvas3dRef, skeletonBox);
+
+  onMounted(() => {
+    initRenderer();
+    animate();
+
+    SkeletonBuilder.init().then(() => {
+      build();
+      // stressTest(10);
+    });
+  });
+
+  function stressTest(maxFrames: 10) {
+    let frameCount = 0;
+
+    function frameLoop(timestamp: number) {
+      build();
+
+      if (++frameCount < maxFrames) {
+        requestAnimationFrame(frameLoop); // schedule the next frame
+      } else {
+        console.log(`Finished ${maxFrames} frames.`);
+      }
+    }
+
+    requestAnimationFrame(frameLoop);
+  }
+
+  function build() {
+    tracker.start();
+
+    // setEdgePitch(roofPoints, 1, 60);
+    const activeSkeleton = SkeletonBuilder.buildFromPolygon([roofPoints]);
+
+    tracker.stop();
+    console.log(`${tracker.duration}s`);
+
+    updateSkeletonBox(activeSkeleton);
+    draw2d(activeSkeleton);
+    draw3d(activeSkeleton);
+  }
+
+  function updateSkeletonBox(skeleton: Skeleton) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const vertex of skeleton.vertices) {
+      minX = Math.min(minX, vertex[0]);
+      minY = Math.min(minY, vertex[1]);
+      maxX = Math.max(maxX, vertex[0]);
+      maxY = Math.max(maxY, vertex[1]);
+    }
+
+    Object.assign(skeletonBox, { minX, minY, maxX, maxY });
+  }
+
+  function setEdgePitch(ring: number[][], edgeIx: number, deg: number) {
     const rad = deg * Math.PI / 180;
     ring[edgeIx][2] = Math.tan(rad);   // store the new weight
   }
 
-  setEdgePitch(roofPoints, 1, 60);
-
-  function toWeight(degree) {
+  function toWeight(degree: number) {
     return 1.0 / Math.cos(degree * Math.PI / 180.0);
   }
 
-  SkeletonBuilder.init().then(() => {
-    function cll() {
-      activeSkeleton = SkeletonBuilder.buildFromPolygon([roofPoints]);
-    }
-
-    cll();
-
-    main();
-
-    // Stress test
-    // const MAX_FRAMES = 10;
-    // let frameCount = 0;
-    // const startTime = performance.now();
-    //
-    // function frameLoop(timestamp: number) {
-    //   cll();
-    //   console.log(`Frame #${frameCount}   t = ${(timestamp - startTime).toFixed(1)} ms`);
-    //
-    //   if (++frameCount < MAX_FRAMES) {
-    //     requestAnimationFrame(frameLoop); // schedule the next frame
-    //   } else {
-    //     console.log('Finished 1 000 frames.');
-    //   }
-    // }
-    // requestAnimationFrame(frameLoop);
-  });
 </script>
 <template>
   <div class="container">
@@ -284,10 +237,10 @@
       </div>
     </div>
     <div class="preview">
-      <p>2D straight skeleton preview</p>
-      <canvas id="canvas2d"></canvas>
-      <p>3D straight skeleton preview</p>
-      <canvas id="canvas3d"></canvas>
+      <p>2D preview</p>
+      <canvas ref="canvas2dRef" id="canvas2d"></canvas>
+      <p>3D preview</p>
+      <canvas ref="canvas3dRef" id="canvas3d"></canvas>
     </div>
   </div>
 
