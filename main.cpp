@@ -274,6 +274,7 @@ void *serialize_mesh(const Mesh &mesh) {
 extern "C" {
 EMSCRIPTEN_KEEPALIVE
 void *create_straight_skeleton(void *data) {
+  std::cout << "Create skeleton" << std::endl;
   auto [polygon, weights] = parse_skeleton_rings(data);
 
   // const Straight_skeleton_2_ptr skeleton = CGAL::create_interior_weighted_straight_skeleton_2(polygon, weights);
