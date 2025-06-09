@@ -123,9 +123,9 @@ const char *extrude_straight_skeleton(const char *jsonStr) {
   writer.EndObject();
 
   // Copy buffer to memory and return a pointer
-  static std::string resultJson; // keep memory alive
-  resultJson = buffer.GetString();
+  static std::string resultJson;
+  resultJson.assign(buffer.GetString(), buffer.GetSize());
 
-  return resultJson.c_str(); // JS side must copy it!
+  return resultJson.c_str();
 }
 }

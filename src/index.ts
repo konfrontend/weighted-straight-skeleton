@@ -78,14 +78,14 @@ export class SkeletonBuilder {
 
     // Call WASM function with char* ptr
     const resultPtr = this.module._extrude_straight_skeleton(ptr);
-
-    // Free the memory after use
-    this.module._free(ptr);
-    this.module._free(resultPtr);
-
     if (resultPtr === 0) {
       throw new Error('Failed to create straight skeleton');
     }
+
+    // Free the memory after use
+    this.module._free(ptr);
+
+    console.log(ptr);
 
     // Return result object
     const resultJSON = SkeletonBuilder.UTF8ToString(resultPtr); // helper from Emscripten
@@ -97,30 +97,5 @@ export class SkeletonBuilder {
     if (this.module === null) {
       throw new Error('The WebAssembly module has not been initialized, call SkeletonBuilder.init() first.');
     }
-  }
-
-  private static serializeInput(input: number[][][]): ArrayBuffer {
-    let size: number = 1;
-
-    for (const ring of input) {
-      size += 1 + (ring.length - 1) * 2;
-    }
-
-    const uint32Array = new Uint32Array(size);
-    const float32Array = new Float32Array(uint32Array.buffer);
-    let offset = 0;
-
-    for (const ring of input) {
-      uint32Array[offset++] = ring.length - 1;
-
-      for (let i = 0; i < ring.length - 1; i++) {
-        float32Array[offset++] = ring[i][0];
-        float32Array[offset++] = ring[i][1];
-      }
-    }
-
-    uint32Array[offset++] = 0;
-
-    return float32Array.buffer;
   }
 }
