@@ -85,8 +85,6 @@ export class SkeletonBuilder {
     // Free the memory after use
     this.module._free(ptr);
 
-    console.log(ptr);
-
     // Return result object
     const resultJSON = SkeletonBuilder.UTF8ToString(resultPtr); // helper from Emscripten
 
