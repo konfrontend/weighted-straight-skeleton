@@ -6,86 +6,59 @@
   import { usePreview2D } from './utils/usePreview2D';
   import PerformanceTracker from './utils/PerformaceTracker';
 
-  const weight = 1.0 // 45
-  // const weight = 3.732 // 15
-  // const weight = 0.577 // 60
-  const roofPoints = [
+  const testRoof = [
     [
       -7.668643659936184,
       -6.893428148118769,
-      weight,
     ],
     [
       4.408397985946804,
       -6.7713729215075,
-      weight,
     ],
     [
       4.306500975403689,
       3.311066594496151,
-      weight,
     ],
     [
       -10.670070422270111,
       3.159707605316379,
-      weight,
     ],
     [
       -10.606254962386874,
       -3.1546632582566723,
-      weight,
     ],
     [
       -7.706725210596072,
       -3.1253594956881585,
-      weight,
     ],
     [
       -7.668643659936184,
       -6.893428148118769,
-      weight,
     ],
   ];
-  const roofPoints2 =  [
+  const testRect = [
     [
-      -9.009041222817567,
-      9.222178884041266,
-      weight,
+      0,
+      0,
     ],
     [
-      -9.013719041688557,
-      1.4865015810386901,
-      weight,
-    ],
-
-    [
-      -6.014205984189054,
-      1.4846877542418162,
-      weight,
+      5,
+      0,
     ],
     [
-      -6.018463415090951,
-      -5.555796818845172,
-      weight,
+      5,
+      5,
     ],
 
     [
-      10.389475804567338,
-      -5.565718815938562,
-      weight,
+      0,
+      5,
     ],
     [
-      10.398411054340226,
-      9.210443060151015,
-      weight,
+      0,
+      0,
     ],
-
-    [
-      -9.009041222817567,
-      9.222178884041266,
-      weight,
-    ]
-  ]
+  ];
 
   const canvas2dRef = ref<HTMLCanvasElement | null>(null);
   const canvas3dRef = ref<HTMLCanvasElement | null>(null);
@@ -129,10 +102,28 @@
   function build() {
     tracker.start();
 
-    // setEdgePitch(roofPoints, 1, 60);
-    const activeSkeleton = SkeletonBuilder.buildFromPolygon([roofPoints]);
+    /*
+    * weights:
+    * 1.0 ~ 45°
+    * 3.732 ~ 15°
+    * 0.577 ~ 60°
+    * */
+
+    const testRoofSet = {
+      rings: [testRoof],
+      weights: [[1.0, 0.8, 1.0, 0.8, 1.0, 1.0]],
+      maxHeight: 2.0,
+    };
+    const testRectSet = {
+      rings: [testRect],
+      weights: [[1.0, 0.8, 1.0, 0.8]],
+      maxHeight: 2.0,
+    };
+    const inputData = testRoofSet;
+    // const inputData = testRectSet;
+
+    const activeSkeleton = SkeletonBuilder.build(inputData);
     console.log(activeSkeleton);
-    // activeSkeleton.polygons = activeSkeleton.polygons.slice(0, 19)
 
     tracker.stop();
     console.log(`${tracker.duration}s`);
@@ -158,10 +149,10 @@
     Object.assign(skeletonBox, { minX, minY, maxX, maxY });
   }
 
-  function setEdgePitch(ring: number[][], edgeIx: number, deg: number) {
-    const rad = deg * Math.PI / 180;
-    ring[edgeIx][2] = Math.tan(rad);   // store the new weight
-  }
+  // function setEdgePitch(ring: number[][], edgeIx: number, deg: number) {
+  //   const rad = deg * Math.PI / 180;
+  //   ring[edgeIx][2] = Math.tan(rad);   // store the new weight
+  // }
 
   function toWeight(degree: number) {
     return 1.0 / Math.cos(degree * Math.PI / 180.0);
