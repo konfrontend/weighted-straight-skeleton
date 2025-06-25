@@ -373,7 +373,8 @@
     };
     // const activeSkeleton = SkeletonBuilder.build(testRectSet);
     // const activeSkeleton = SkeletonBuilder.build(testHolesSet);
-    const activeSkeleton = SkeletonBuilder.build(testRoofSet);
+    // const activeSkeleton = SkeletonBuilder.extrude(testRoofSet);
+    const activeSkeleton = SkeletonBuilder.create(testRoofSet);
     // console.log(activeSkeleton);
 
 

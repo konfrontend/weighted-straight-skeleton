@@ -128,4 +128,100 @@ const char *extrude_straight_skeleton(const char *jsonStr) {
 
   return resultJson.c_str();
 }
+
+EMSCRIPTEN_KEEPALIVE
+const char *create_straight_skeleton(const char *jsonStr) {
+  rapidjson::Document doc;
+  doc.Parse(jsonStr);
+
+  // --- Extract rings ---
+  const auto &contours = doc["rings"];
+  std::vector<Polygon_2> rings;
+  for (const auto &ring: contours.GetArray()) {
+    Polygon_2 poly;
+    for (const auto &pt: ring.GetArray()) {
+      poly.push_back(Point_2(pt[0].GetDouble(), pt[1].GetDouble()));
+    }
+    rings.push_back(std::move(poly));
+  }
+
+  // --- Extract weights ---
+  const auto &weights = doc["weights"];
+  std::vector<std::vector<double> > weightArrays;
+  for (const auto &weightRing: weights.GetArray()) {
+    std::vector<double> ws;
+    for (const auto &w: weightRing.GetArray()) {
+      ws.push_back(w.GetDouble());
+    }
+    weightArrays.push_back(std::move(ws));
+  }
+
+  // double max_height = doc.HasMember("maxHeight") ? doc["maxHeight"].GetDouble() : 0.0;
+
+  // Construct polygon with holes
+  Polygon_with_holes_2 pwh(rings[0]);
+  for (size_t i = 1; i < rings.size(); ++i) {
+    pwh.add_hole(rings[i]);
+  }
+
+  // Create skeleton
+  const Straight_skeleton_2_ptr skeleton = CGAL::create_interior_weighted_straight_skeleton_2(pwh, weightArrays);
+
+  // Serialize and return
+  rapidjson::StringBuffer buffer;
+  rapidjson::Writer writer(buffer);
+
+  writer.StartObject();
+
+  // Serialize vertices
+  writer.Key("vertices");
+  writer.StartArray();
+
+  std::unordered_map<Straight_skeleton_2::Vertex_const_handle, int> vertex_map;
+  int idx = 0;
+  for (auto vertex = skeleton->vertices_begin(); vertex != skeleton->vertices_end(); ++vertex) {
+    const auto &p = vertex->point();
+    writer.StartArray();
+    writer.Double(p.x());
+    writer.Double(p.y());
+    writer.Double(vertex->time());
+    writer.EndArray();
+
+    // Update vertex_map for the next step (polygons mapping)
+    vertex_map[vertex] = idx;
+    idx++;
+  }
+  writer.EndArray();
+
+  // Serialize polygons (triangles)
+  writer.Key("polygons");
+  writer.StartArray();
+
+  for (auto face = skeleton->faces_begin(); face != skeleton->faces_end(); ++face) {
+    std::vector<uint32_t> face_polygon;
+
+    writer.StartArray();
+
+    for (auto h = face->halfedge();;) {
+      const uint32_t vertexIndex = vertex_map[h->vertex()];
+      writer.Int(static_cast<int>(vertexIndex));
+
+      h = h->next();
+
+      if (h == face->halfedge()) break;
+    }
+
+    writer.EndArray();
+  }
+
+  writer.EndArray();
+
+  writer.EndObject();
+
+  // Copy buffer to memory and return a pointer
+  static std::string resultJson;
+  resultJson.assign(buffer.GetString(), buffer.GetSize());
+
+  return resultJson.c_str();
+}
 }

@@ -11,6 +11,8 @@ interface WasmModule {
   _free(ptr: number): void;
 
   _extrude_straight_skeleton(ptr: number): number;
+
+  _create_straight_skeleton(ptr: number): number;
 }
 
 /**
@@ -64,7 +66,7 @@ export class SkeletonBuilder {
    * All rings must be weakly simple.
    * Each ring must have a duplicate of the first vertex at the end.
    */
-  public static build(input: SkeletonBuilderInput): Skeleton {
+  public static extrude(input: SkeletonBuilderInput): Skeleton {
     this.checkModule();
 
     // Serialize input
@@ -78,6 +80,33 @@ export class SkeletonBuilder {
 
     // Call WASM function with char* ptr
     const resultPtr = this.module._extrude_straight_skeleton(ptr);
+    if (resultPtr === 0) {
+      throw new Error('Failed to extrude straight skeleton');
+    }
+
+    // Free the memory after use
+    this.module._free(ptr);
+
+    // Return result object
+    const resultJSON = SkeletonBuilder.UTF8ToString(resultPtr); // helper from Emscripten
+
+    return JSON.parse(resultJSON);
+  }
+
+  public static create(input: SkeletonBuilderInput): Skeleton {
+    this.checkModule();
+
+    // Serialize input
+    const inputJson = JSON.stringify(input);
+    const inputBytes = new TextEncoder().encode(inputJson);
+
+    // Allocate memory in WASM
+    const ptr = this.module._malloc(inputBytes.length + 1);
+    this.module.HEAPU8.set(inputBytes, ptr);
+    this.module.HEAPU8[ptr + inputBytes.length] = 0; // null-terminate
+
+    // Call WASM function with char* ptr
+    const resultPtr = this.module._create_straight_skeleton(ptr);
     if (resultPtr === 0) {
       throw new Error('Failed to create straight skeleton');
     }
