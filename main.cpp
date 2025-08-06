@@ -14,10 +14,11 @@
 #include <CGAL/extrude_skeleton.h>
 #include <CGAL/Polygon_2.h>
 
-#include <iostream>
-#include <unordered_map>
 #include <vector>
 #include <memory>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 namespace SS = CGAL::CGAL_SS_i;
 namespace PMP = CGAL::Polygon_mesh_processing;
@@ -42,137 +43,185 @@ using Straight_skeleton_2_ptr = std::shared_ptr<Straight_skeleton_2>;
 
 using Mesh = CGAL::Surface_mesh<Point_3>;
 
-// Decodes rings from data and generates a skeleton from them.
-// Data contains a list of rings; each ring is represented by a number of points (uint32_t), followed by the points
-// themselves (each point is represented by 2 floats: x, y).
-// The last value is 0.
-Straight_skeleton_2_ptr generate_skeleton(void *data) {
-    auto *data_uint32 = static_cast<uint32_t *>(data);
-    uint32_t edges = data_uint32[0]; // #triplets in first ring
-
-    ++data_uint32;
-
-    assert(points != 0);
-    assert(points > 2);
-    assert(edges != 0 && edges > 2);
-
-    Polygon_2 outer;
-    Polygon_2 hole;
-    Polygon_with_holes_2 poly;
-    bool outer_set = false;
-
-    std::vector<std::vector<FT> > weights; // one inner vector per ring
-
-    while (edges != 0) {
-        Polygon_2 *target = outer_set ? &hole : &outer;
-        weights.emplace_back(); // create a slot for this ring
-
-        /* ---- read   edges   triples (x,y,w) ---- */
-        for (uint32_t i = 0; i < edges; ++i) {
-            float x = *(reinterpret_cast<float *>(data_uint32) + i * 3);
-            float y = *(reinterpret_cast<float *>(data_uint32) + i * 3 + 1);
-            float w = *(reinterpret_cast<float *>(data_uint32) + i * 3 + 2);
-
-            target->push_back(Point_2(x, y));
-            weights.back().push_back(w); // store weight
-            // std::cout << "Edge:" << i << "Weight:" << w << std::endl;
-        }
-
-        data_uint32 += edges * 3; // skip x-y-w triplets
-        edges = data_uint32[0]; // next ring size or 0
-
-        ++data_uint32;
-
-        /* close current ring */
-        if (!outer_set) {
-            assert(outer.is_counterclockwise_oriented());
-            poly = Polygon_with_holes_2(outer);
-            outer_set = true;
-        } else {
-            assert(hole.is_clockwise_oriented());
-            poly.add_hole(hole);
-            hole.clear();
-        }
-    }
-
-    return CGAL::create_interior_weighted_straight_skeleton_2(poly, weights);
-}
-
-// Serializes a skeleton into a format that can be sent to the JS side.
-// The first part of the data describes the vertices:
-// The first value (uint32_t) specifies the number of vertices.
-// After that, each vertex is represented by 3 floats: x, y, time.
-// Then, the second part describes the faces:
-// Each face is represented by an uint32_t specifying the number of vertices in the face, followed by the indices
-// of its vertices (also uint32_t).
-// The last value is 0.
-void *serialize_skeleton(const Straight_skeleton_2_ptr &iss) {
-    if (iss == nullptr) {
-        return nullptr;
-    }
-
-    std::unordered_map<Straight_skeleton_2::Vertex_const_handle, int> vertex_map;
-    std::vector<std::tuple<float, float, float> > vertices;
-
-    for (auto vertex = iss->vertices_begin(); vertex != iss->vertices_end(); ++vertex) {
-        CGAL::Point_2 point = vertex->point();
-
-        vertices.emplace_back(point.x(), point.y(), vertex->time());
-        vertex_map[vertex] = vertices.size() - 1;
-    }
-
-    std::vector<std::vector<uint32_t> > faces;
-    int total_vertices = 0;
-
-    for (auto face = iss->faces_begin(); face != iss->faces_end(); ++face) {
-        std::vector<uint32_t> face_polygon;
-
-        for (auto h = face->halfedge();;) {
-            auto vertex_index = static_cast<uint32_t>(vertex_map[h->vertex()]);
-            face_polygon.push_back(vertex_index);
-            ++total_vertices;
-
-            h = h->next();
-
-            if (h == face->halfedge()) {
-                break;
-            }
-        }
-
-        faces.emplace_back(face_polygon);
-    }
-
-    const int total_size = 1 + vertices.size() * 3 + faces.size() + total_vertices + 1;
-    auto *data = static_cast<uint32_t *>(malloc(total_size * sizeof(uint32_t)));
-    auto *data_float = reinterpret_cast<float *>(data);
-    int i = 0;
-
-    data[i++] = vertices.size();
-
-    for (auto vertex: vertices) {
-        data_float[i++] = std::get<0>(vertex);
-        data_float[i++] = std::get<1>(vertex);
-        data_float[i++] = std::get<2>(vertex);
-    }
-
-    for (auto face: faces) {
-        data[i++] = face.size();
-
-        for (auto vertex_index: face) {
-            data[i++] = vertex_index;
-        }
-    }
-
-    data[i++] = 0;
-
-    return data;
-}
-
 extern "C" {
 EMSCRIPTEN_KEEPALIVE
-void *create_straight_skeleton(void *data) {
-    const Straight_skeleton_2_ptr skeleton = generate_skeleton(data);
+const char *extrude_straight_skeleton(const char *jsonStr) {
+  rapidjson::Document doc;
+  doc.Parse(jsonStr);
 
-    return serialize_skeleton(skeleton);
+  // --- Extract rings ---
+  const auto &contours = doc["rings"];
+  std::vector<Polygon_2> rings;
+  for (const auto &ring: contours.GetArray()) {
+    Polygon_2 poly;
+    for (const auto &pt: ring.GetArray()) {
+      poly.push_back(Point_2(pt[0].GetDouble(), pt[1].GetDouble()));
+    }
+    rings.push_back(std::move(poly));
+  }
+
+  // --- Extract weights ---
+  const auto &weights = doc["weights"];
+  std::vector<std::vector<double> > weightArrays;
+  for (const auto &weightRing: weights.GetArray()) {
+    std::vector<double> ws;
+    for (const auto &w: weightRing.GetArray()) {
+      ws.push_back(w.GetDouble());
+    }
+    weightArrays.push_back(std::move(ws));
+  }
+
+  double max_height = doc.HasMember("maxHeight") ? doc["maxHeight"].GetDouble() : 0.0;
+
+  // Construct polygon with holes
+  Polygon_with_holes_2 pwh(rings[0]);
+  for (size_t i = 1; i < rings.size(); ++i) {
+    pwh.add_hole(rings[i]);
+  }
+
+  // Create mesh
+  CGAL::Surface_mesh<Point_3> mesh;
+  CGAL::extrude_skeleton(
+    pwh, mesh,
+    CGAL::parameters::weights(weightArrays)
+    .maximum_height(max_height)
+  );
+
+  // Serialize and return
+  rapidjson::StringBuffer buffer;
+  rapidjson::Writer writer(buffer);
+
+  writer.StartObject();
+
+  // Serialize vertices
+  writer.Key("vertices");
+  writer.StartArray();
+  for (auto v: mesh.vertices()) {
+    const auto &p = mesh.point(v);
+    writer.StartArray();
+    writer.Double(p.x());
+    writer.Double(p.y());
+    writer.Double(p.z());
+    writer.EndArray();
+  }
+  writer.EndArray();
+
+  // Serialize polygons (triangles)
+  writer.Key("polygons");
+  writer.StartArray();
+  for (auto f: mesh.faces()) {
+    writer.StartArray();
+    auto h = mesh.halfedge(f);
+    for (int i = 0; i < 3; ++i) {
+      writer.Int(mesh.target(h));
+      h = mesh.next(h);
+    }
+    writer.EndArray();
+  }
+  writer.EndArray();
+
+  writer.EndObject();
+
+  // Copy buffer to memory and return a pointer
+  static std::string resultJson;
+  resultJson.assign(buffer.GetString(), buffer.GetSize());
+
+  return resultJson.c_str();
+}
+
+EMSCRIPTEN_KEEPALIVE
+const char *create_straight_skeleton(const char *jsonStr) {
+  rapidjson::Document doc;
+  doc.Parse(jsonStr);
+
+  // --- Extract rings ---
+  const auto &contours = doc["rings"];
+  std::vector<Polygon_2> rings;
+  for (const auto &ring: contours.GetArray()) {
+    Polygon_2 poly;
+    for (const auto &pt: ring.GetArray()) {
+      poly.push_back(Point_2(pt[0].GetDouble(), pt[1].GetDouble()));
+    }
+    rings.push_back(std::move(poly));
+  }
+
+  // --- Extract weights ---
+  const auto &weights = doc["weights"];
+  std::vector<std::vector<double> > weightArrays;
+  for (const auto &weightRing: weights.GetArray()) {
+    std::vector<double> ws;
+    for (const auto &w: weightRing.GetArray()) {
+      ws.push_back(w.GetDouble());
+    }
+    weightArrays.push_back(std::move(ws));
+  }
+
+  // double max_height = doc.HasMember("maxHeight") ? doc["maxHeight"].GetDouble() : 0.0;
+
+  // Construct polygon with holes
+  Polygon_with_holes_2 pwh(rings[0]);
+  for (size_t i = 1; i < rings.size(); ++i) {
+    pwh.add_hole(rings[i]);
+  }
+
+  // Create skeleton
+  const Straight_skeleton_2_ptr skeleton = CGAL::create_interior_weighted_straight_skeleton_2(pwh, weightArrays);
+
+  // Serialize and return
+  rapidjson::StringBuffer buffer;
+  rapidjson::Writer writer(buffer);
+
+  writer.StartObject();
+
+  // Serialize vertices
+  writer.Key("vertices");
+  writer.StartArray();
+
+  std::unordered_map<Straight_skeleton_2::Vertex_const_handle, int> vertex_map;
+  int idx = 0;
+  for (auto vertex = skeleton->vertices_begin(); vertex != skeleton->vertices_end(); ++vertex) {
+    const auto &p = vertex->point();
+    writer.StartArray();
+    writer.Double(p.x());
+    writer.Double(p.y());
+    writer.Double(vertex->time());
+    writer.EndArray();
+
+    // Update vertex_map for the next step (polygons mapping)
+    vertex_map[vertex] = idx;
+    idx++;
+  }
+  writer.EndArray();
+
+  // Serialize polygons (triangles)
+  writer.Key("polygons");
+  writer.StartArray();
+
+  for (auto face = skeleton->faces_begin(); face != skeleton->faces_end(); ++face) {
+    std::vector<uint32_t> face_polygon;
+
+    writer.StartArray();
+
+    for (auto h = face->halfedge();;) {
+      const uint32_t vertexIndex = vertex_map[h->vertex()];
+      writer.Int(static_cast<int>(vertexIndex));
+
+      h = h->next();
+
+      if (h == face->halfedge()) break;
+    }
+
+    writer.EndArray();
+  }
+
+  writer.EndArray();
+
+  writer.EndObject();
+
+  // Copy buffer to memory and return a pointer
+  static std::string resultJson;
+  resultJson.assign(buffer.GetString(), buffer.GetSize());
+
+  return resultJson.c_str();
 }
 }

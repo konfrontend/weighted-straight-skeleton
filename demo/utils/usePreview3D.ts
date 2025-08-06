@@ -5,7 +5,12 @@ import { Skeleton } from '../../src';
 import { Earcut } from 'three/src/extras/Earcut';
 import { PerspectiveCamera, WebGLRenderer } from 'three';
 
-export function usePreview3D (canvasRef: Ref<HTMLCanvasElement | null>, skeletonBox: Reactive<{ minX: number, minY: number, maxX: number, maxY: number}>) {
+export function usePreview3D(canvasRef: Ref<HTMLCanvasElement | null>, skeletonBox: Reactive<{
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number
+}>) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xeeeeee);
 
@@ -17,12 +22,12 @@ export function usePreview3D (canvasRef: Ref<HTMLCanvasElement | null>, skeleton
   scene.add(light);
   scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-  let camera: PerspectiveCamera
-  let renderer: WebGLRenderer
-  let controls: OrbitControls
+  let camera: PerspectiveCamera;
+  let renderer: WebGLRenderer;
+  let controls: OrbitControls;
 
-  function initRenderer () {
-    const canvasElement = canvasRef.value!
+  function initRenderer() {
+    const canvasElement = canvasRef.value!;
 
     camera = new THREE.PerspectiveCamera(25, canvasElement.clientWidth / canvasElement.clientHeight, 0.01, 100);
     camera.position.set(1, 2, 1);
@@ -34,10 +39,10 @@ export function usePreview3D (canvasRef: Ref<HTMLCanvasElement | null>, skeleton
     controls = new OrbitControls(camera, renderer.domElement);
     controls.update();
 
-    resizeCanvas3d(canvasElement)
+    resizeCanvas3d(canvasElement);
   }
 
-  function animate () {
+  function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
@@ -53,7 +58,7 @@ export function usePreview3D (canvasRef: Ref<HTMLCanvasElement | null>, skeleton
     );
     const scale = 1 / Math.max(skeletonBox.maxX - skeletonBox.minX, skeletonBox.maxY - skeletonBox.minY);
 
-    const material = new THREE.MeshPhysicalMaterial({
+    const material = new THREE.MeshStandardMaterial({
       color: new THREE.Color(0xffb6e9),
       side: THREE.DoubleSide,
       flatShading: true,
@@ -86,14 +91,20 @@ export function usePreview3D (canvasRef: Ref<HTMLCanvasElement | null>, skeleton
 
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3));
 
-    material.wireframe = true;
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.x = -Math.PI / 2;
     scene.add(mesh);
 
+    const wireMaterial = new THREE.MeshBasicMaterial({
+      wireframe: true,
+      depthTest: false,
+      color: 0x000000,
+    });
+    const wire = new THREE.Mesh(geometry, wireMaterial);
+    mesh.add(wire);
+
     camera.position.set(1, 2, 1);
     controls.update();
-
   }
 
   function resizeCanvas3d(canvasElement: HTMLCanvasElement) {
@@ -108,6 +119,6 @@ export function usePreview3D (canvasRef: Ref<HTMLCanvasElement | null>, skeleton
   return {
     draw3d,
     initRenderer,
-    animate
-  }
+    animate,
+  };
 }
